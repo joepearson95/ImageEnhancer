@@ -148,7 +148,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Hello.cpp" />
     <ClCompile Include="ImageEnhancer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CImg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

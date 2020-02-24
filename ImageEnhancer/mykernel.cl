@@ -10,3 +10,8 @@ __kernel void mykernel(__global char* data) {
 	data[8] = 'l';
 	data[9] = 'd';
 }
+
+kernel void identity(global const uchar* A, global uchar* B) {
+	int id = get_global_id(0);
+	B[id] = A[id];
+}
