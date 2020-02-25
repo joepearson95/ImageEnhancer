@@ -15,3 +15,12 @@ kernel void identity(global const uchar* A, global uchar* B) {
 	int id = get_global_id(0);
 	B[id] = A[id];
 }
+
+kernel void hist_simple(global const int* A, global int* H) {
+	int id = get_global_id(0);
+
+	//assumes that H has been initialised to 0
+	int bin_index = A[id];//take value as a bin index
+
+	atomic_inc(&H[bin_index]);//serial operation, not very efficient!
+}
