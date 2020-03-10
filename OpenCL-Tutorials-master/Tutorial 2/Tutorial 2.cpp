@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 		std::cout << "Runing on " << GetPlatformName(platform_id) << ", " << GetDeviceName(platform_id, device_id) << std::endl;
 
 		//create a queue to which we will push commands for the device
-		cl::CommandQueue queue(context);
+		cl::CommandQueue queue(context, CL_QUEUE_PROFILING_ENABLE);
 
 		//3.2 Load & build the device code
 		cl::Program::Sources sources;
@@ -104,16 +104,34 @@ int main(int argc, char **argv) {
 		kernel4.setArg(1, dev_image_input);
 		kernel4.setArg(2, dev_project);
 
-		queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange);
-		queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange);
-		queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange);
-		queue.enqueueNDRangeKernel(kernel4, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange);
+
+		cl::Event prof_event;
+		cl::Event prof_event2;
+		cl::Event prof_event3;
+		cl::Event prof_event4;
+		queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event);
+		queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event2);
+		queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event3);
+		queue.enqueueNDRangeKernel(kernel4, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event4);
 
 		vector<unsigned char> output(image_input.size());
 		//4.3 Copy the result from device to host
 		queue.enqueueReadBuffer(dev_project, CL_TRUE, 0, output.size(), &output.data()[0]);
 
-		//cout << output << endl;
+		cout << "Kernel Full Info..." << endl;
+		cout <<  "Kernel1: " << GetFullProfilingInfo(prof_event, ProfilingResolution::PROF_US) << endl;
+		cout << "Kernel2: " <<GetFullProfilingInfo(prof_event2, ProfilingResolution::PROF_US) << endl;
+		cout << "Kernel3: "<<GetFullProfilingInfo(prof_event3, ProfilingResolution::PROF_US) << endl;
+		cout << "Kernel4: "<<GetFullProfilingInfo(prof_event4, ProfilingResolution::PROF_US) << "\n\n" << endl;
+
+		
+		cout << "Kernel Execution Time... " << endl;
+		cout << "Kernel1 execution time [ns]:" << prof_event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
+		cout << "Kernel2 execution time [ns]:" << prof_event2.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event2.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
+		cout << "Kernel3 execution time [ns]:" << prof_event3.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event3.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
+		cout << "Kernel4 execution time [ns]:" << prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
+
+
 		CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
 		CImgDisplay disp_output(output_image,"output");
 
