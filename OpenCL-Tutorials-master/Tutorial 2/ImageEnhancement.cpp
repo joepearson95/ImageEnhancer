@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 	// Handle the command line options such as device selection, etc. and select the given image
 	int platform_id = 0;
 	int device_id = 0;
-	string image_filename = "test.pgm";
+	string image_filename = "test_large.pgm";
 
 	for (int i = 1; i < argc; i++) {
 		if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform_id = atoi(argv[++i]); }
