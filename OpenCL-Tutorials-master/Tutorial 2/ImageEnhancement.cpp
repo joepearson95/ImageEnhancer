@@ -6,54 +6,57 @@
 using namespace cimg_library;
 using namespace std;
 
-tuple<string, string> selection() {
-	cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n" << endl;
-	string imageName;
-	cin >> imageName;
-	if (imageName == "0"){
-		imageName = "test.pgm";
-	}
-	else if(imageName == "1") {
-		imageName = "test_large.pgm";
-	}
-	else {
-		imageName = "none";
-		cout << "No file found." << endl;
-	}
-
-	vector<cl::Platform> platforms;
-	vector<cl::Device> devices;
-	cl::Platform::get(&platforms);
-	for (int i = 0; i < (int)platforms.size(); i++) 
-		cout << "Platform [" << i << "] - " << GetPlatformName(i) << endl;
-
-	cout << "Which platform would you like to use:" << endl;
-	string platformChoice;
-	cin >> platformChoice;
-
-	return make_tuple(platformChoice, imageName);
-}
-
 int main(int argc, char** argv) {
 	cimg::exception_mode(0);
 
 	// Run a try/catch just incase any errors arrise in the code
 	try {
-		string platform, image_filename;
-		tie(platform, image_filename) = selection();
-		if (platform != "0" && platform != "1") {
+		// Selection of the file and platform to run program on
+		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n" << endl;
+		string image_filename;
+		cin >> image_filename;
+		if (image_filename == "0") {
+			image_filename = "wig.pgm";
+		}
+		else if (image_filename == "1") {
+			image_filename = "test_large.pgm";
+		}
+		else if (image_filename == "2") {
+			image_filename = "test.ppm";
+		}
+		else if (image_filename == "3") {
+			image_filename = "test_large.ppm";
+		}
+		else {
+			image_filename = "none";
+			cout << "No file found." << endl;
+		}
+
+		vector<cl::Platform> platforms;
+		vector<cl::Device> devices;
+		cl::Platform::get(&platforms);
+		for (int i = 0; i < (int)platforms.size(); i++)
+			cout << "Platform [" << i << "] - " << GetPlatformName(i) << "\n" << endl;
+
+		cout << "Which platform would you like to use:" << endl;
+		string platform;
+		cin >> platform;
+
+		if (platform != "0" && platform != "1" && image_filename != "none") {
 			cout << "Cannot run program with the given inputs. Now exiting...";
 			exit(0);
 		}
-		cout << platform << " " << image_filename;
+		cout << "What bin size?" << endl;
+		int histSizeNum;
+		cin >> histSizeNum;
+			
 		cout << "Runing on " << GetPlatformName(stoi(platform)) << ", " << GetDeviceName(stoi(platform), 0) << "\n\n" << std::endl;
 		// Use CImg to get the specified input image
 		CImg<unsigned char> image_input(image_filename.c_str());
 		CImgDisplay disp_input(image_input, "input");
 
 		// Select the computing device to use before displaying the device that is running
-		cl::Context context = GetContext(stoi(platform), 0);
-		
+		cl::Context context = GetContext(stoi(platform), 0);		
 
 		// Queue for pushing the commands to device - profiling is enabled to show the execution time, etc.
 		cl::CommandQueue queue(context, CL_QUEUE_PROFILING_ENABLE);
@@ -78,7 +81,7 @@ int main(int argc, char** argv) {
 
 		// Histogram(s) vector
 		typedef int mytype;
-		vector<int> hist(256);
+		vector<int> hist(histSizeNum);
 		size_t histSize = hist.size() * sizeof(mytype);
 
 		//Buffer creation
@@ -96,7 +99,22 @@ int main(int argc, char** argv) {
 		kernel.setArg(0, dev_image_input);
 		kernel.setArg(1, dev_hist);
 
-		cl::Kernel kernel2 = cl::Kernel(program, "cumul_hist");
+		// Select the type of calculation required for the second kernel
+		cout << "Which type of calculation:\n [0] - Scan\n [1] - Cumulative Histogram\n" << endl;
+		string secondKernel;
+		cin >> secondKernel;
+		if (secondKernel == "0") {
+			secondKernel = "scan_hist";
+		}
+		else if (secondKernel == "1") {
+			secondKernel = "cumul_hist";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
+
+		cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
 		kernel2.setArg(0, dev_hist);
 		kernel2.setArg(1, dev_cumul_hist);
 
@@ -109,7 +127,7 @@ int main(int argc, char** argv) {
 		kernel4.setArg(1, dev_image_input);
 		kernel4.setArg(2, dev_project);
 
-		// Event Variables
+		// Event variables to show the timeframes, etc.
 		cl::Event prof_event;
 		cl::Event prof_event2;
 		cl::Event prof_event3;
@@ -140,14 +158,14 @@ int main(int argc, char** argv) {
 		cout << "Kernel4 execution time [ns]:" << prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
 
 		// Display output image
-		/*CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
+		CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
 		CImgDisplay disp_output(output_image, "output");
 
 		while (!disp_input.is_closed() && !disp_output.is_closed()
 			&& !disp_input.is_keyESC() && !disp_output.is_keyESC()) {
 			disp_input.wait(1);
 			disp_output.wait(1);
-		}*/
+		}
 
 	}
 	catch (const cl::Error & err) {
