@@ -5,41 +5,55 @@
 
 using namespace cimg_library;
 using namespace std;
-void print_help() {
-	std::cerr << "Application usage:" << std::endl;
 
-	std::cerr << "  -p : select platform " << std::endl;
-	std::cerr << "  -d : select device" << std::endl;
-	std::cerr << "  -l : list all platforms and devices" << std::endl;
-	std::cerr << "  -f : input image file (default: test.ppm)" << std::endl;
-	std::cerr << "  -h : print this message" << std::endl;
+tuple<string, string> selection() {
+	cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n" << endl;
+	string imageName;
+	cin >> imageName;
+	if (imageName == "0"){
+		imageName = "test.pgm";
+	}
+	else if(imageName == "1") {
+		imageName = "test_large.pgm";
+	}
+	else {
+		imageName = "none";
+		cout << "No file found." << endl;
+	}
+
+	vector<cl::Platform> platforms;
+	vector<cl::Device> devices;
+	cl::Platform::get(&platforms);
+	for (int i = 0; i < (int)platforms.size(); i++) 
+		cout << "Platform [" << i << "] - " << GetPlatformName(i) << endl;
+
+	cout << "Which platform would you like to use:" << endl;
+	string platformChoice;
+	cin >> platformChoice;
+
+	return make_tuple(platformChoice, imageName);
 }
 
 int main(int argc, char** argv) {
-	// Handle the command line options such as device selection, etc. and select the given image
-	int platform_id = 0;
-	int device_id = 0;
-	string image_filename = "test_large.pgm";
-
-	for (int i = 1; i < argc; i++) {
-		if ((strcmp(argv[i], "-p") == 0) && (i < (argc - 1))) { platform_id = atoi(argv[++i]); }
-		else if ((strcmp(argv[i], "-d") == 0) && (i < (argc - 1))) { device_id = atoi(argv[++i]); }
-		else if (strcmp(argv[i], "-l") == 0) { std::cout << ListPlatformsDevices() << std::endl; }
-		else if ((strcmp(argv[i], "-f") == 0) && (i < (argc - 1))) { image_filename = argv[++i]; }
-		else if (strcmp(argv[i], "-h") == 0) { print_help(); return 0; }
-	}
-
 	cimg::exception_mode(0);
 
 	// Run a try/catch just incase any errors arrise in the code
 	try {
+		string platform, image_filename;
+		tie(platform, image_filename) = selection();
+		if (platform != "0" && platform != "1") {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
+		cout << platform << " " << image_filename;
+		cout << "Runing on " << GetPlatformName(stoi(platform)) << ", " << GetDeviceName(stoi(platform), 0) << "\n\n" << std::endl;
 		// Use CImg to get the specified input image
 		CImg<unsigned char> image_input(image_filename.c_str());
 		CImgDisplay disp_input(image_input, "input");
 
 		// Select the computing device to use before displaying the device that is running
-		cl::Context context = GetContext(platform_id, device_id);
-		std::cout << "Runing on " << GetPlatformName(platform_id) << ", " << GetDeviceName(platform_id, device_id) << "\n\n" << std::endl;
+		cl::Context context = GetContext(stoi(platform), 0);
+		
 
 		// Queue for pushing the commands to device - profiling is enabled to show the execution time, etc.
 		cl::CommandQueue queue(context, CL_QUEUE_PROFILING_ENABLE);
@@ -126,14 +140,14 @@ int main(int argc, char** argv) {
 		cout << "Kernel4 execution time [ns]:" << prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event4.getProfilingInfo<CL_PROFILING_COMMAND_START>() << endl;
 
 		// Display output image
-		CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
+		/*CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
 		CImgDisplay disp_output(output_image, "output");
 
 		while (!disp_input.is_closed() && !disp_output.is_closed()
 			&& !disp_input.is_keyESC() && !disp_output.is_keyESC()) {
 			disp_input.wait(1);
 			disp_output.wait(1);
-		}
+		}*/
 
 	}
 	catch (const cl::Error & err) {
