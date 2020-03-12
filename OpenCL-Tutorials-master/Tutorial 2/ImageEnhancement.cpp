@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
 		else if (secondKernel == "1") {
 			secondKernel = "cumul_hist";
 		}
-		if (secondKernel == "2") {
+		else if (secondKernel == "2") {
 			secondKernel = "local_scan_hist";
 		}
 		else if (secondKernel == "3") {
