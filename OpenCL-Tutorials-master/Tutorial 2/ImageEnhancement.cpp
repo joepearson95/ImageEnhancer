@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 		string image_filename;
 		cin >> image_filename;
 		if (image_filename == "0") {
-			image_filename = "wig.pgm";
+			image_filename = "test.pgm";
 		}
 		else if (image_filename == "1") {
 			image_filename = "test_large.pgm";
@@ -94,13 +94,31 @@ int main(int argc, char** argv) {
 		// Copy image to device memory
 		queue.enqueueWriteBuffer(dev_image_input, CL_TRUE, 0, image_input.size(), &image_input.data()[0]);
 
+		cout << "Would you like to use local or global memory for the histogram?\n [0] - Local\n [1] - Global\n" << endl;
+		string memoryUsage;
+		cin >> memoryUsage;
+
+		if (memoryUsage == "0") {
+			memoryUsage = "local_hist_simple";
+		}
+		else if (memoryUsage == "1") {
+			memoryUsage = "hist_simple";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
 		// Create the specific kernels for each step
-		cl::Kernel kernel = cl::Kernel(program, "hist_simple");
+		cl::Kernel kernel = cl::Kernel(program, memoryUsage.c_str());
 		kernel.setArg(0, dev_image_input);
 		kernel.setArg(1, dev_hist);
+		if (memoryUsage == "local_hist_simple") {
+			kernel.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel.setArg(3, histSizeNum);
+		}
 
 		// Select the type of calculation required for the second kernel
-		cout << "Which type of calculation:\n [0] - Scan\n [1] - Cumulative Histogram\n" << endl;
+		cout << "Which type of calculation:\n [0] - Scan\n [1] - Cumulative Histogram\n [2] - Local Scan\n [3] - Local Cumulative Histogram\n" << endl;
 		string secondKernel;
 		cin >> secondKernel;
 		if (secondKernel == "0") {
@@ -108,6 +126,12 @@ int main(int argc, char** argv) {
 		}
 		else if (secondKernel == "1") {
 			secondKernel = "cumul_hist";
+		}
+		if (secondKernel == "2") {
+			secondKernel = "local_scan_hist";
+		}
+		else if (secondKernel == "3") {
+			secondKernel = "local_cumul_hist";
 		}
 		else {
 			cout << "Cannot run program with the given inputs. Now exiting...";
@@ -117,10 +141,34 @@ int main(int argc, char** argv) {
 		cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
 		kernel2.setArg(0, dev_hist);
 		kernel2.setArg(1, dev_cumul_hist);
+		if (secondKernel == "local_cumul_hist") {
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+		}
+		if (secondKernel == "local_scan_hist") {
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(mytype)));
+		}
 
+		cout << "Would you like to use local or global memory mapping?\n [0] - Local\n [1] - Global\n" << endl;
+		string mapMemoryType;
+		cin >> mapMemoryType;
+
+		if (mapMemoryType == "0") {
+			mapMemoryType = "local_map";
+		}
+		else if (mapMemoryType == "1") {
+			mapMemoryType = "map";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
 		cl::Kernel kernel3 = cl::Kernel(program, "map");
+		
 		kernel3.setArg(0, dev_cumul_hist);
 		kernel3.setArg(1, dev_map);
+		//kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+		
 
 		cl::Kernel kernel4 = cl::Kernel(program, "project");
 		kernel4.setArg(0, dev_map);
