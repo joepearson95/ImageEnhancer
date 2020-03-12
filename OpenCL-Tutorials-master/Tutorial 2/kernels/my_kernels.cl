@@ -110,14 +110,14 @@ kernel void local_map(global int* A, global int* B, local int* localMem) {
 	localMem[lid] = A[id];
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	B[id] = localMem[lid] * 255 / localMem[N - 1];
+	B[id] = (double)localMem[lid] * 255 / localMem[N - 1];
 }
 
 kernel void map(global int* A, global int* B) {
 	// Get the id and size before scaling the values to ensure that the maximum is 255
 	int id = get_global_id(0);
 	int N = get_global_size(0);
-	B[id] = A[id] * 255 / A[N-1];
+	B[id] = (double)A[id] * 255 / A[N-1];
 }
 
 kernel void project(global int* A, global uchar* image, global uchar* output) {
