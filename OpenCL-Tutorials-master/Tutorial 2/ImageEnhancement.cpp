@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 	// Run a try/catch just incase any errors arrise in the code
 	try {
 		// Selection of the file and platform to run program on
-		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n" << endl;
+		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n[4] 16 Bit.ppm\n" << endl;
 		string image_filename;
 		cin >> image_filename;
 		if (image_filename == "0") {
@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
 		}
 		else if (image_filename == "3") {
 			image_filename = "test_large.ppm";
+		}
+		else if (image_filename == "4") {
+			image_filename = "16bit.ppm";
 		}
 		else {
 			image_filename = "none";
@@ -163,11 +166,13 @@ int main(int argc, char** argv) {
 			cout << "Cannot run program with the given inputs. Now exiting...";
 			exit(0);
 		}
-		cl::Kernel kernel3 = cl::Kernel(program, "map");
+
+		cl::Kernel kernel3 = cl::Kernel(program, mapMemoryType.c_str());
 		
 		kernel3.setArg(0, dev_cumul_hist);
 		kernel3.setArg(1, dev_map);
-		//kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+		if(mapMemoryType == "local_map")
+			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
 		
 
 		cl::Kernel kernel4 = cl::Kernel(program, "project");
