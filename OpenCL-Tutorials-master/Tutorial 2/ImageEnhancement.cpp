@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 	// Run a try/catch just incase any errors arrise in the code
 	try {
 		// Selection of the file and platform to run program on
-		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n[4] 16 Bit.ppm\n" << endl;
+		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n[4] 16 Bit.ppm\n[5] 16 Bit.pgm\n" << endl;
 		string image_filename;
 		cin >> image_filename;
 		if (image_filename == "0") {
@@ -29,6 +29,9 @@ int main(int argc, char** argv) {
 		}
 		else if (image_filename == "4") {
 			image_filename = "16bit.ppm";
+		}
+		else if (image_filename == "5") {
+			image_filename = "16bit.pgm";
 		}
 		else {
 			image_filename = "none";

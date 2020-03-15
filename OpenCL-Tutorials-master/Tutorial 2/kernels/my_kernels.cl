@@ -42,19 +42,22 @@ kernel void local_hist_simple(global const uchar* A, global int* H, local int* L
 	// Define the id for global and local, etc.
 	int id = get_global_id(0);
 	int lid = get_local_id(0);
-	int bin_index = A[id];
-
-	// clear bins
+	int N = get_local_size(0);
+	
+	LH[lid] = A[id];
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	// gather the local histogram
+	atomic_inc(&H[LH[lid]]);
+	/*int bin_index = A[id];
+
+	if (lid < nr_bins)
+		LH[lid] = 0;
+	barrier(CLK_LOCAL_MEM_FENCE);
 	atomic_inc(&LH[bin_index]);
-
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	// begin combining the local hists to a global one
-	if (id < nr_bins)
-		atomic_add(&H[id], LH[id]);
+	if(id < nr_bins)
+		atomic_add(&H[id], LH[lid]);*/
 }
 
 kernel void local_cumul_hist(global int* A, global int* B, local int* LH) {
