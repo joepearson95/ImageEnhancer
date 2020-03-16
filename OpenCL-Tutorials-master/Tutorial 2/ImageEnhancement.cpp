@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
 
 	// Run a try/catch just incase any errors arrise in the code
 	try {
+		// User input section
 		// Selection of the file and platform to run program on
 		cout << "Which image would you like to use: \n[0] test.pgm \n[1] test_large.pgm\n[2] test.ppm\n[3] test_large.ppm\n[4] 16 Bit.ppm\n[5] 16 Bit.pgm\n" << endl;
 		string image_filename;
@@ -38,13 +39,14 @@ int main(int argc, char** argv) {
 			cout << "No file found." << endl;
 		}
 
+		// Loop the platforms and display them for the user to choose
 		vector<cl::Platform> platforms;
 		vector<cl::Device> devices;
 		cl::Platform::get(&platforms);
 		for (int i = 0; i < (int)platforms.size(); i++)
 			cout << "Platform [" << i << "] - " << GetPlatformName(i) << "\n" << endl;
 
-		cout << "Which platform would you like to use:" << endl;
+		cout << "Which platform would you like to use:\n" << endl;
 		string platform;
 		cin >> platform;
 
@@ -52,11 +54,68 @@ int main(int argc, char** argv) {
 			cout << "Cannot run program with the given inputs. Now exiting...";
 			exit(0);
 		}
-		cout << "What bin size?" << endl;
+
+		// Define (from user input) what the the bin size is for this program
+		cout << "What bin size?\n" << endl;
 		int histSizeNum;
 		cin >> histSizeNum;
-			
+		
+		// Define (based on user input) what the program will use
+		cout << "Would you like to use local or global memory for the image?\n [0] - Local\n [1] - Global\n" << endl;
+		string memoryType;
+		cin >> memoryType;
+
+		// Histogram Memory Definition
+		string memoryUsage;
+		if (memoryType == "0") {
+			memoryUsage = "local_hist_simple";
+		}
+		else if (memoryType == "1") {
+			memoryUsage = "hist_simple";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
+
+		// Map Definition Based On Memory Choice
+		string mapMemoryType;
+		if (memoryType == "0") {
+			mapMemoryType = "local_map";
+		}
+		else if (memoryType == "1") {
+			mapMemoryType = "map";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
+
+		// Select The Type of Calculation Required For The Second Kernel
+		cout << "Which type of calculation:\n [0] - Scan\n [1] - Cumulative Histogram\n" << endl;
+		string secondKernel;
+		cin >> secondKernel;
+
+		if (memoryType == "1" && secondKernel == "0") {
+			secondKernel = "scan_hist";
+		}
+		else if (memoryType == "1" && secondKernel == "1") {
+			secondKernel = "cumul_hist";
+		}
+		else if (memoryType == "0" && secondKernel == "0") {
+			secondKernel = "local_scan_hist";
+		}
+		else if (memoryType == "0" && secondKernel == "1") {
+			secondKernel = "local_cumul_hist";
+		}
+		else {
+			cout << "Cannot run program with the given inputs. Now exiting...";
+			exit(0);
+		}
+
+		// Display output of certain selections
 		cout << "Runing on " << GetPlatformName(stoi(platform)) << ", " << GetDeviceName(stoi(platform), 0) << "\n\n" << std::endl;
+		
 		// Use CImg to get the specified input image
 		CImg<unsigned char> image_input(image_filename.c_str());
 		CImgDisplay disp_input(image_input, "input");
@@ -100,21 +159,7 @@ int main(int argc, char** argv) {
 		// Copy image to device memory
 		queue.enqueueWriteBuffer(dev_image_input, CL_TRUE, 0, image_input.size(), &image_input.data()[0]);
 
-		cout << "Would you like to use local or global memory for the histogram?\n [0] - Local\n [1] - Global\n" << endl;
-		string memoryUsage;
-		cin >> memoryUsage;
-
-		if (memoryUsage == "0") {
-			memoryUsage = "local_hist_simple";
-		}
-		else if (memoryUsage == "1") {
-			memoryUsage = "hist_simple";
-		}
-		else {
-			cout << "Cannot run program with the given inputs. Now exiting...";
-			exit(0);
-		}
-		// Create the specific kernels for each step
+		// Kernel 1 is used for the creation of a histogram - local or global is defined form user input at the start of the program run
 		cl::Kernel kernel = cl::Kernel(program, memoryUsage.c_str());
 		kernel.setArg(0, dev_image_input);
 		kernel.setArg(1, dev_hist);
@@ -123,27 +168,7 @@ int main(int argc, char** argv) {
 			kernel.setArg(3, histSizeNum);
 		}
 
-		// Select the type of calculation required for the second kernel
-		cout << "Which type of calculation:\n [0] - Scan\n [1] - Cumulative Histogram\n [2] - Local Scan\n [3] - Local Cumulative Histogram\n" << endl;
-		string secondKernel;
-		cin >> secondKernel;
-		if (secondKernel == "0") {
-			secondKernel = "scan_hist";
-		}
-		else if (secondKernel == "1") {
-			secondKernel = "cumul_hist";
-		}
-		else if (secondKernel == "2") {
-			secondKernel = "local_scan_hist";
-		}
-		else if (secondKernel == "3") {
-			secondKernel = "local_cumul_hist";
-		}
-		else {
-			cout << "Cannot run program with the given inputs. Now exiting...";
-			exit(0);
-		}
-
+		// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input 
 		cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
 		kernel2.setArg(0, dev_hist);
 		kernel2.setArg(1, dev_cumul_hist);
@@ -155,29 +180,14 @@ int main(int argc, char** argv) {
 			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(mytype)));
 		}
 
-		cout << "Would you like to use local or global memory mapping?\n [0] - Local\n [1] - Global\n" << endl;
-		string mapMemoryType;
-		cin >> mapMemoryType;
-
-		if (mapMemoryType == "0") {
-			mapMemoryType = "local_map";
-		}
-		else if (mapMemoryType == "1") {
-			mapMemoryType = "map";
-		}
-		else {
-			cout << "Cannot run program with the given inputs. Now exiting...";
-			exit(0);
-		}
-
+		// Kernel 3 is for creating a LUT for the final kernel when creating the image again
 		cl::Kernel kernel3 = cl::Kernel(program, mapMemoryType.c_str());
-		
 		kernel3.setArg(0, dev_cumul_hist);
 		kernel3.setArg(1, dev_map);
-		if(mapMemoryType == "local_map")
+		if (mapMemoryType == "local_map")
 			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
-		
 
+		// Kernel 4 is for projecting the data back to the image in order to perform contrast changes
 		cl::Kernel kernel4 = cl::Kernel(program, "project");
 		kernel4.setArg(0, dev_map);
 		kernel4.setArg(1, dev_image_input);
