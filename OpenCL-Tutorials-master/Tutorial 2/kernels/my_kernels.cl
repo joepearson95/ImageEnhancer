@@ -17,24 +17,33 @@ kernel void cumul_hist(global int* A, global int* B) {
 		atomic_add(&B[i], A[id]);
 }
 
-kernel void scan_hist(global int* A, global int* B) {
-	// Gather the size and id
+kernel void scan_hist(global int* A) {
 	int id = get_global_id(0);
 	int N = get_global_size(0);
-	global int* C;
+	int t;
 
-	// Loop the size and begin a simple stride
+	//up-sweep
 	for (int stride = 1; stride < N; stride *= 2) {
-		// Pass the original input to the output based on if the current iteration is greater than the current stride
-		B[id] = A[id];
-		if (id >= stride)
-			B[id] += A[id - stride];
+		if (((id + 1) % (stride * 2)) == 0)
+			A[id] += A[id - stride];
 
-		// Ensure that it is synced
-		barrier(CLK_GLOBAL_MEM_FENCE);
+		barrier(CLK_GLOBAL_MEM_FENCE); //sync the step
+	}
 
-		// Swap A & B between each step
-		C = A; A = B; B = C;
+	//down-sweep
+	if (id == 0)
+		A[N - 1] = 0;//exclusive scan
+
+	barrier(CLK_GLOBAL_MEM_FENCE); //sync the step
+
+	for (int stride = N / 2; stride > 0; stride /= 2) {
+		if (((id + 1) % (stride * 2)) == 0) {
+			t = A[id];
+			A[id] += A[id - stride]; //reduce 
+			A[id - stride] = t;		 //move
+		}
+
+		barrier(CLK_GLOBAL_MEM_FENCE); //sync the step
 	}
 }
 

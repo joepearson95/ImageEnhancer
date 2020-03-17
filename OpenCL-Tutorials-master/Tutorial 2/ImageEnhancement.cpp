@@ -170,8 +170,13 @@ int main(int argc, char** argv) {
 
 		// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input 
 		cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
-		kernel2.setArg(0, dev_hist);
-		kernel2.setArg(1, dev_cumul_hist);
+		if (secondKernel == "scan_hist") {
+			kernel2.setArg(0, dev_hist);
+		}
+		if (secondKernel == "cumul_hist" || secondKernel == "local_cumul_hist" || secondKernel == "local_scan_hist") {
+			kernel2.setArg(0, dev_hist);
+			kernel2.setArg(1, dev_cumul_hist);
+		}
 		if (secondKernel == "local_cumul_hist") {
 			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
 		}
@@ -182,7 +187,12 @@ int main(int argc, char** argv) {
 
 		// Kernel 3 is for creating a LUT for the final kernel when creating the image again
 		cl::Kernel kernel3 = cl::Kernel(program, mapMemoryType.c_str());
-		kernel3.setArg(0, dev_cumul_hist);
+		if (secondKernel == "scan_hist") {
+			kernel3.setArg(0, dev_hist);
+		}
+		else {
+			kernel3.setArg(0, dev_cumul_hist);
+		}
 		kernel3.setArg(1, dev_map);
 		if (mapMemoryType == "local_map")
 			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
@@ -204,7 +214,7 @@ int main(int argc, char** argv) {
 		queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event2);
 		queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event3);
 		queue.enqueueNDRangeKernel(kernel4, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event4);
-
+		
 		// Create output image buffer and read to it
 		vector<unsigned char> output(image_input.size());
 		queue.enqueueReadBuffer(dev_project, CL_TRUE, 0, output.size(), &output.data()[0]);
