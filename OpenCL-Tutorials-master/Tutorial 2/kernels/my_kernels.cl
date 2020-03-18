@@ -62,22 +62,14 @@ kernel void local_hist_simple(global const uchar* A, global int* H, local int* L
 	// Define the id for global and local, etc.
 	int id = get_global_id(0);
 	int lid = get_local_id(0);
-	int N = get_local_size(0);
-	
-	LH[lid] = A[id];
-	barrier(CLK_LOCAL_MEM_FENCE);
+	int bin_index = A[id];
 
-	atomic_inc(&H[LH[lid]]);
-	/*int bin_index = A[id];
-
-	if (lid < nr_bins)
-		LH[lid] = 0;
 	barrier(CLK_LOCAL_MEM_FENCE);
 	atomic_inc(&LH[bin_index]);
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	if(id < nr_bins)
-		atomic_add(&H[id], LH[lid]);*/
+	if (id < nr_bins)
+		atomic_add(&H[id], LH[id]);
 }
 
 kernel void local_cumul_hist(global int* A, global int* B, local int* LH) {
@@ -86,13 +78,14 @@ kernel void local_cumul_hist(global int* A, global int* B, local int* LH) {
 	int lid = get_local_id(0);
 	int N = get_local_size(0);
 
-	// Cache all values from global to local memory
-	LH[lid] = A[id];
-	barrier(CLK_LOCAL_MEM_FENCE);
-
+	/*LH[lid] = A[id];
+	barrier(CLK_LOCAL_MEM_FENCE);*/
 	// Loop over and create the cumulative histogram
-	for (int i = lid + 1; i < N; i++)
-		atomic_add(&B[i], LH[lid]);
+	for (int i = 0; i <= lid; i++)
+		LH[lid] = LH[lid] + A[i];
+
+	B[id] = LH[lid];
+	//atomic_add(&B[i], LH[lid]);
 }
 
 kernel void local_scan_hist(__global const int* A, global int* B, local int* scratch_1, local int* scratch_2) {
@@ -147,7 +140,7 @@ kernel void map(global int* A, global int* B) {
 	// Get the id and size before scaling the values to ensure that the maximum is 255
 	int id = get_global_id(0);
 	int N = get_global_size(0);
-	B[id] = A[id] * 255 / A[N - 1];
+	B[id] = (double)A[id] * 255 / A[N - 1];
 }
 
 kernel void project(global int* A, global uchar* image, global uchar* output) {

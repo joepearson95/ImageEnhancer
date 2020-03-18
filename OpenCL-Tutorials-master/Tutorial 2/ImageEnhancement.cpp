@@ -156,11 +156,9 @@ int main(int argc, char** argv) {
 		// Program logic for image enhancement 
 
 		// Histogram(s) vector
-
-		typedef short 16bitImage;
-		typedef int normalImage;
+		typedef unsigned short mytype;
 		vector<mytype> hist(histSizeNum);
-		size_t histSize = hist.size() * sizeof(mytype);		
+		size_t histSize = hist.size() * sizeof(mytype);
 
 		//Buffer creation
 		cl::Buffer dev_image_input(context, CL_MEM_READ_ONLY, image_input.size());
@@ -178,7 +176,7 @@ int main(int argc, char** argv) {
 		kernel.setArg(0, dev_image_input);
 		kernel.setArg(1, dev_hist);
 		if (memoryUsage == "local_hist_simple") {
-			kernel.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel.setArg(2, cl::Local(histSizeNum * sizeof(int)));
 			kernel.setArg(3, histSizeNum);
 		}
 
@@ -192,15 +190,15 @@ int main(int argc, char** argv) {
 			kernel2.setArg(1, dev_cumul_hist);
 		}
 		if (secondKernel == "local_cumul_hist") {
-			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(int)));
 		}
 		if (secondKernel == "local_scan_hist") {
-			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
-			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(int)));
+			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(int)));
 		}
 
 		// Kernel 3 is for creating a LUT for the final kernel when creating the image again
-		cl::Kernel kernel3 = cl::Kernel(program, mapMemoryType.c_str());
+		cl::Kernel kernel3 = cl::Kernel(program, "map");
 		if (secondKernel == "scan_hist") {
 			kernel3.setArg(0, dev_hist);
 		}
@@ -208,8 +206,8 @@ int main(int argc, char** argv) {
 			kernel3.setArg(0, dev_cumul_hist);
 		}
 		kernel3.setArg(1, dev_map);
-		if (mapMemoryType == "local_map")
-			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+		/*if (mapMemoryType == "local_map")
+			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(int)));*/
 
 		// Kernel 4 is for projecting the data back to the image in order to perform contrast changes
 		cl::Kernel kernel4 = cl::Kernel(program, "project");
@@ -225,16 +223,16 @@ int main(int argc, char** argv) {
 
 		std::ofstream txthist;
 		// Enqueue command to execute on specific kernels
+		
 		queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event);
 		queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event2);
 		queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event3);
 		queue.enqueueNDRangeKernel(kernel4, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event4);
 
-
 		// Create output image buffer and read to it
 		vector<unsigned char> output(image_input.size());
 		queue.enqueueReadBuffer(dev_project, CL_TRUE, 0, output.size(), &output.data()[0]);
-		cout << output.data()[0];
+
 		// Get full info (memory transfers) for each kernel
 		cout << "Kernel Full Info..." << endl;
 		cout << "Kernel1: " << GetFullProfilingInfo(prof_event, ProfilingResolution::PROF_US) << endl;
