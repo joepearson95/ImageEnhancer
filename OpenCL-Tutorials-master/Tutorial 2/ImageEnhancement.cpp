@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 		cout << "What bin size?\n" << endl;
 		int histSizeNum;
 		cin >> histSizeNum;
-		
+
 		// Define (based on user input) what the program will use
 		cout << "Would you like to use local or global memory for the image?\n [0] - Local\n [1] - Global\n" << endl;
 		string memoryType;
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
 		else if (memoryType == "1" && secondKernel == "1") {
 			if (image_filename == "16bit.ppm" || image_filename == "16bit.pgm") {
 				secondKernel = "sixteenbit_cumul_hist";
-			} 
+			}
 			else {
 				secondKernel = "cumul_hist";
 			}
@@ -126,13 +126,13 @@ int main(int argc, char** argv) {
 
 		// Display output of certain selections
 		cout << "Runing on " << GetPlatformName(stoi(platform)) << ", " << GetDeviceName(stoi(platform), 0) << "\n\n" << std::endl;
-		
+
 		// Use CImg to get the specified input image
 		CImg<unsigned char> image_input(image_filename.c_str());
 		CImgDisplay disp_input(image_input, "input");
 
 		// Select the computing device to use before displaying the device that is running
-		cl::Context context = GetContext(stoi(platform), 0);		
+		cl::Context context = GetContext(stoi(platform), 0);
 
 		// Queue for pushing the commands to device - profiling is enabled to show the execution time, etc.
 		cl::CommandQueue queue(context, CL_QUEUE_PROFILING_ENABLE);
@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
 		kernel.setArg(0, dev_image_input);
 		kernel.setArg(1, dev_hist);
 		if (memoryUsage == "local_hist_simple") {
-			kernel.setArg(2, cl::Local(histSizeNum * sizeof(int)));
+			kernel.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
 			kernel.setArg(3, histSizeNum);
 		}
 
@@ -185,20 +185,20 @@ int main(int argc, char** argv) {
 		if (secondKernel == "scan_hist") {
 			kernel2.setArg(0, dev_hist);
 		}
-		if (secondKernel == "cumul_hist" || secondKernel == "sixteenbit_cumul_hist" || secondKernel == "local_cumul_hist" || secondKernel == "local_scan_hist") {
+		if (secondKernel == "cumul_hist" || secondKernel == "local_cumul_hist" || secondKernel == "local_scan_hist") {
 			kernel2.setArg(0, dev_hist);
 			kernel2.setArg(1, dev_cumul_hist);
 		}
 		if (secondKernel == "local_cumul_hist") {
-			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(int)));
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
 		}
 		if (secondKernel == "local_scan_hist") {
-			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(int)));
-			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(int)));
+			kernel2.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
+			kernel2.setArg(3, cl::Local(histSizeNum * sizeof(mytype)));
 		}
 
 		// Kernel 3 is for creating a LUT for the final kernel when creating the image again
-		cl::Kernel kernel3 = cl::Kernel(program, "map");
+		cl::Kernel kernel3 = cl::Kernel(program, mapMemoryType.c_str());
 		if (secondKernel == "scan_hist") {
 			kernel3.setArg(0, dev_hist);
 		}
@@ -206,8 +206,8 @@ int main(int argc, char** argv) {
 			kernel3.setArg(0, dev_cumul_hist);
 		}
 		kernel3.setArg(1, dev_map);
-		/*if (mapMemoryType == "local_map")
-			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(int)));*/
+		if (mapMemoryType == "local_map")
+			kernel3.setArg(2, cl::Local(histSizeNum * sizeof(mytype)));
 
 		// Kernel 4 is for projecting the data back to the image in order to perform contrast changes
 		cl::Kernel kernel4 = cl::Kernel(program, "project");
@@ -223,16 +223,16 @@ int main(int argc, char** argv) {
 
 		std::ofstream txthist;
 		// Enqueue command to execute on specific kernels
-		
 		queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event);
 		queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event2);
 		queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(hist.size()), cl::NullRange, NULL, &prof_event3);
 		queue.enqueueNDRangeKernel(kernel4, cl::NullRange, cl::NDRange(image_input.size()), cl::NullRange, NULL, &prof_event4);
 
+
 		// Create output image buffer and read to it
 		vector<unsigned char> output(image_input.size());
 		queue.enqueueReadBuffer(dev_project, CL_TRUE, 0, output.size(), &output.data()[0]);
-
+		cout << output.data()[0];
 		// Get full info (memory transfers) for each kernel
 		cout << "Kernel Full Info..." << endl;
 		cout << "Kernel1: " << GetFullProfilingInfo(prof_event, ProfilingResolution::PROF_US) << endl;
