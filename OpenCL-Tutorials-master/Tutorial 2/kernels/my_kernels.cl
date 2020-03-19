@@ -18,14 +18,14 @@ kernel void sixteenbit_cumul_hist(global float* A, global float* B) {
 	//atomic_add(&B[id], A[id]);
 }
 
-kernel void cumul_hist(global float* A, global float* B) {
+kernel void cumul_hist(global int* A, global int* B) {
 	// Define the id and size of input to loop
 	int id = get_global_id(0);
 	int N = get_global_size(0);
 
 	// Loop the size and then pass to the output the cumulative histogram that is calculated
-	for (int i = 0; i <= id; i++)
-		B[id] = B[id] + A[i];
+	for (int i = id + 1; i < N; i++)
+		atomic_add(&B[i], A[id]);
 }
 
 kernel void scan_hist(global int* A) {
@@ -147,7 +147,7 @@ kernel void map(global int* A, global int* B) {
 	// Get the id and size before scaling the values to ensure that the maximum is 255
 	int id = get_global_id(0);
 	int N = get_global_size(0);
-	B[id] = A[id] * (float)255 / A[N - 1];
+	B[id] = A[id] * (double)255 / A[N - 1];
 }
 
 kernel void project(global int* A, global uchar* image, global uchar* output) {
