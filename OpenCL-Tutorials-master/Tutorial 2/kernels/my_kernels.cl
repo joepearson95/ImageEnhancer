@@ -68,16 +68,6 @@ kernel void local_hist_simple(global const uchar* A, global int* H, local int* L
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	atomic_inc(&H[LH[lid]]);
-	/*int bin_index = A[id];
-
-	if (lid < nr_bins)
-		LH[lid] = 0;
-	barrier(CLK_LOCAL_MEM_FENCE);
-	atomic_inc(&LH[bin_index]);
-	barrier(CLK_LOCAL_MEM_FENCE);
-
-	if(id < nr_bins)
-		atomic_add(&H[id], LH[lid]);*/
 }
 
 kernel void local_cumul_hist(global int* A, global int* B, local int* LH) {
