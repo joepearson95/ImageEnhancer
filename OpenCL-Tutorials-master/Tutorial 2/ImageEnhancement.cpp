@@ -6,6 +6,14 @@
 
 using namespace cimg_library;
 
+/*
+This code will take user input to define the image to be used, whether local or global memory is to be used and then perform a scan or cumulative histogram on the image before creating a look up table (mapping) and projecting back to the image. There is a variation of scans, etc. These are the following: a Blelloch basic exclusive scan for global memory, double-buffered Hillis-Steele scan for local usage, cumulative histogram for global usage and a local version of this as an alternative for a cumulative histogram.
+This has been built upon the workshop code, however, has been adapted outside of the scope of the workshops due to the added functionality: memory transfer/execution time, user input, etc. As well as allowing for the use of 16bit images by using unsigned shorts as the data type in the host code (instead of an int) and using floats as the parameters in the cumulative kernels, instead of integers. Additionally, casting the maximum value to a float in the ‘mapping’ kernel and using 653535 instead of 255 as the maximum value for 16-bit images will also allow this to work.
+The small/large grey scale images will work on all variations of selection, whilst the 16-bit greyscale image will only work on global cumulative histogram.
+
+References: https://stackoverflow.com/questions/13925995/options-to-convert-16-bit-image   http://www.cheat-sheets.org/saved-copy/opencl-1-1-quick-reference-card.pdf   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/atomicFunctions.html
+*/
+
 int main(int argc, char** argv) {
 	cimg::exception_mode(0);
 
@@ -152,9 +160,10 @@ int main(int argc, char** argv) {
 			throw err;
 		}
 
-		// Program logic for image enhancement 
+		// Program logic for image enhancement
 
-		// Histogram(s) vector
+		// This has been placed into an if/else statement to support 16 bit imagery
+		// If/else is a hack for this solution due to having issues with universal 'short' datatype usage
 		if (image_filename == "16bit.ppm" || image_filename == "16bit.pgm") {
 			typedef unsigned short mytype;
 			vector<mytype> hist(histSizeNum);
@@ -180,7 +189,7 @@ int main(int argc, char** argv) {
 				kernel.setArg(3, histSizeNum);
 			}
 
-			// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input 
+			// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input
 			cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
 			if (secondKernel == "scan_hist") {
 				kernel2.setArg(0, dev_hist);
@@ -282,7 +291,7 @@ int main(int argc, char** argv) {
 				kernel.setArg(3, histSizeNum);
 			}
 
-			// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input 
+			// Kernel 2 is used computing partial reductions with a scan or a cumulative histogram - also memory is based off of the beginning user input
 			cl::Kernel kernel2 = cl::Kernel(program, secondKernel.c_str());
 			if (secondKernel == "scan_hist") {
 				kernel2.setArg(0, dev_hist);
@@ -353,6 +362,7 @@ int main(int argc, char** argv) {
 			CImg<unsigned char> output_image(output.data(), image_input.width(), image_input.height(), image_input.depth(), image_input.spectrum());
 			CImgDisplay disp_output(output_image, "output");
 
+			// Loop to essentially keep the image from auto-closing
 			while (!disp_input.is_closed() && !disp_output.is_closed()
 				&& !disp_input.is_keyESC() && !disp_output.is_keyESC()) {
 				disp_input.wait(1);
